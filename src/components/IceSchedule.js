@@ -1,118 +1,114 @@
- "use client";
-import React, { useState, useEffect } from "react";
+ // IceScheduleApp.jsx
+'use client';
 
-const IceSchedule = () => {
-  const iceRinks = ["A-hallen", "Ravemahallen", "Prolympiahallen", "D-hallen"];
-  const [role, setRole] = useState("Admin");
-  const [schedule, setSchedule] = useState({});
-  const [descriptions, setDescriptions] = useState({});
+import { useState, useEffect } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import { halls } from './data/halls';
+import './styles/globals.css';
 
-  const startHour = 6;
-  const endHour = 23;
-  const interval = 10;
+export default function IceScheduleApp() {
+  const [events, setEvents] = useState([]);
+  const [role, setRole] = useState('public');
 
+  // Load events from localStorage
   useEffect(() => {
-    const initialSchedule = {};
-    const initialDescriptions = {};
-    iceRinks.forEach(rink => {
-      initialSchedule[rink] = [];
-      initialDescriptions[rink] = "";
-    });
-    for (let h = startHour; h <= endHour; h++) {
-      for (let m = 0; m < 60; m += interval) {
-        const time = `${h.toString().padStart(2, "0")}:${m
-          .toString()
-          .padStart(2, "0")}`;
-        initialSchedule[iceRinks[0]].push(time);
-      }
+    const savedEvents = localStorage.getItem('iceScheduleEvents');
+    if (savedEvents) {
+      setEvents(JSON.parse(savedEvents));
     }
-    setSchedule(initialSchedule);
-    setDescriptions(initialDescriptions);
   }, []);
 
-  const handleDragStart = (e, time, rink) => {
-    e.dataTransfer.setData("text/plain", JSON.stringify({ time, rink }));
+  // Save events to localStorage
+  useEffect(() => {
+    localStorage.setItem('iceScheduleEvents', JSON.stringify(events));
+  }, [events]);
+
+  const handleDateSelect = (selectInfo) => {
+    if (role !== 'admin') return;
+    const title = prompt('Ange aktivitetstitel');
+    if (title) {
+      const newEvent = {
+        id: String(Date.now()),
+        title,
+        start: selectInfo.startStr,
+        end: selectInfo.endStr,
+        color: '#a3e635'
+      };
+      if (!hasTimeConflict(newEvent)) {
+        setEvents([...events, newEvent]);
+      } else {
+        alert('Tiden är redan bokad i denna hall.');
+      }
+    }
   };
 
-  const handleDrop = (e, targetRink) => {
-    const { time, rink } = JSON.parse(e.dataTransfer.getData("text/plain"));
-    if (rink === targetRink) return;
-    setSchedule(prev => {
-      const newSchedule = { ...prev };
-      newSchedule[rink] = newSchedule[rink].filter(t => t !== time);
-      newSchedule[targetRink] = [...newSchedule[targetRink], time].sort();
-      return newSchedule;
+  const handleEventDrop = (dropInfo) => {
+    if (role !== 'admin') return;
+    const updatedEvent = {
+      id: dropInfo.event.id,
+      title: dropInfo.event.title,
+      start: dropInfo.event.startStr,
+      end: dropInfo.event.endStr,
+      color: dropInfo.event.backgroundColor
+    };
+    if (!hasTimeConflict(updatedEvent, dropInfo.event.id)) {
+      const updatedEvents = events.map((event) =>
+        event.id === dropInfo.event.id ? updatedEvent : event
+      );
+      setEvents(updatedEvents);
+    } else {
+      alert('Tiden krockar med en annan bokning.');
+      dropInfo.revert();
+    }
+  };
+
+  const hasTimeConflict = (newEvent, ignoreId = null) => {
+    const newStart = new Date(newEvent.start).getTime();
+    const newEnd = new Date(newEvent.end).getTime();
+    return events.some(event => {
+      if (event.id === ignoreId) return false;
+      const existingStart = new Date(event.start).getTime();
+      const existingEnd = new Date(event.end).getTime();
+      return (
+        (newStart < existingEnd && newEnd > existingStart)
+      );
     });
-  };
-
-  const handleDescriptionChange = (e, rink) => {
-    setDescriptions({ ...descriptions, [rink]: e.target.value });
   };
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <div style={{ marginBottom: "1rem" }}>
-        <label>Roll: </label>
-        <select value={role} onChange={e => setRole(e.target.value)}>
-          <option value="Admin">Admin</option>
-          <option value="Publik">Publik</option>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Istidsschema HV71</h1>
+
+      <div className="mb-4">
+        <label className="mr-2 font-medium">Visa som:</label>
+        <select value={role} onChange={(e) => setRole(e.target.value)}>
+          <option value="public">Publik</option>
+          <option value="admin">Admin</option>
         </select>
       </div>
 
-      <div style={{ display: "flex", gap: "1rem" }}>
-        {iceRinks.map(rink => (
-          <div
-            key={rink}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => handleDrop(e, rink)}
-            style={{
-              flex: 1,
-              border: "1px solid gray",
-              padding: "0.5rem",
-              minHeight: "400px",
-              backgroundColor: "#eef",
-              borderRadius: "8px"
-            }}
-          >
-            <h3>{rink}</h3>
-            {role === "Admin" ? (
-              <input
-                type="text"
-                placeholder="Beskrivning för skärmvisning"
-                value={descriptions[rink]}
-                onChange={e => handleDescriptionChange(e, rink)}
-                style={{ width: "100%", marginBottom: "0.5rem" }}
-              />
-            ) : (
-              <p>
-                <em>{descriptions[rink]}</em>
-              </p>
-            )}
-
-            <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-              {(schedule[rink] || []).map(time => (
-                <div
-                  key={time}
-                  draggable={role === "Admin"}
-                  onDragStart={e => handleDragStart(e, time, rink)}
-                  style={{
-                    background: "#cce",
-                    padding: "4px",
-                    margin: "2px 0",
-                    borderRadius: "4px",
-                    cursor: role === "Admin" ? "move" : "default",
-                    fontSize: "0.8rem"
-                  }}
-                >
-                  {time}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <FullCalendar
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        initialView="timeGridDay"
+        selectable={role === 'admin'}
+        editable={role === 'admin'}
+        events={events}
+        select={handleDateSelect}
+        eventDrop={handleEventDrop}
+        eventResizableFromStart={role === 'admin'}
+        headerToolbar={{
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        }}
+        slotMinTime="06:00:00"
+        slotMaxTime="23:50:00"
+        allDaySlot={false}
+        height="auto"
+      />
     </div>
   );
-};
-
-export default IceSchedule;
+}
