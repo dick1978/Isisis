@@ -1,7 +1,5 @@
-
-"use client";
+ "use client";
 import React, { useState, useEffect } from "react";
-import "./styles.css";
 
 const IceSchedule = () => {
   const iceRinks = ["A-hallen", "Ravemahallen", "Prolympiahallen", "D-hallen"];
@@ -22,8 +20,10 @@ const IceSchedule = () => {
     });
     for (let h = startHour; h <= endHour; h++) {
       for (let m = 0; m < 60; m += interval) {
-        const time = \`\${h.toString().padStart(2, "0")}:\${m.toString().padStart(2, "0")}\`;
-        initialSchedule[iceRinks[0]].push(time); // default tider till första hallen
+        const time = `${h.toString().padStart(2, "0")}:${m
+          .toString()
+          .padStart(2, "0")}`;
+        initialSchedule[iceRinks[0]].push(time);
       }
     }
     setSchedule(initialSchedule);
@@ -50,10 +50,10 @@ const IceSchedule = () => {
   };
 
   return (
-    <div>
+    <div style={{ padding: "1rem" }}>
       <div style={{ marginBottom: "1rem" }}>
         <label>Roll: </label>
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
+        <select value={role} onChange={e => setRole(e.target.value)}>
           <option value="Admin">Admin</option>
           <option value="Publik">Publik</option>
         </select>
@@ -63,29 +63,46 @@ const IceSchedule = () => {
         {iceRinks.map(rink => (
           <div
             key={rink}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => handleDrop(e, rink)}
-            className="ice-column"
-            style={{ flex: 1, border: "1px solid gray", padding: "0.5rem", minHeight: "400px", backgroundColor: "#f9f9f9" }}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => handleDrop(e, rink)}
+            style={{
+              flex: 1,
+              border: "1px solid gray",
+              padding: "0.5rem",
+              minHeight: "400px",
+              backgroundColor: "#eef",
+              borderRadius: "8px"
+            }}
           >
             <h3>{rink}</h3>
-            {role === "Admin" && (
+            {role === "Admin" ? (
               <input
                 type="text"
-                placeholder="Beskrivning (endast admin)"
+                placeholder="Beskrivning för skärmvisning"
                 value={descriptions[rink]}
-                onChange={(e) => handleDescriptionChange(e, rink)}
-                className="description-field"
+                onChange={e => handleDescriptionChange(e, rink)}
                 style={{ width: "100%", marginBottom: "0.5rem" }}
               />
+            ) : (
+              <p>
+                <em>{descriptions[rink]}</em>
+              </p>
             )}
-            <div>
+
+            <div style={{ maxHeight: "400px", overflowY: "auto" }}>
               {(schedule[rink] || []).map(time => (
                 <div
                   key={time}
-                  className="time-slot"
                   draggable={role === "Admin"}
-                  onDragStart={(e) => handleDragStart(e, time, rink)}
+                  onDragStart={e => handleDragStart(e, time, rink)}
+                  style={{
+                    background: "#cce",
+                    padding: "4px",
+                    margin: "2px 0",
+                    borderRadius: "4px",
+                    cursor: role === "Admin" ? "move" : "default",
+                    fontSize: "0.8rem"
+                  }}
                 >
                   {time}
                 </div>
