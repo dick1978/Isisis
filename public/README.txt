@@ -1,0 +1,1 @@
+Publika filer, t.ex. logotyper, kan ligga här.
