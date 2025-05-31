@@ -1,53 +1,101 @@
-'use client'
-import { useState } from 'react'
 
-const halls = ['A-hallen', 'Ravemahallen', 'Prolympiahallen', 'D-hallen']
-const times = Array.from({ length: (14 * 60) / 10 }, (_, i) => {
-  const h = Math.floor(i * 10 / 60) + 6
-  const m = (i * 10) % 60
-  return ('0' + h).slice(-2) + ':' + ('0' + m).slice(-2)
-})
+"use client";
+import React, { useState, useEffect } from "react";
+import "./styles.css";
 
-export default function IceSchedule() {
-  const [desc, setDesc] = useState(Object.fromEntries(halls.map(h => [h, ''])))
-  const [role, setRole] = useState('viewer')
+const IceSchedule = () => {
+  const iceRinks = ["A-hallen", "Ravemahallen", "Prolympiahallen", "D-hallen"];
+  const [role, setRole] = useState("Admin");
+  const [schedule, setSchedule] = useState({});
+  const [descriptions, setDescriptions] = useState({});
+
+  const startHour = 6;
+  const endHour = 23;
+  const interval = 10;
+
+  useEffect(() => {
+    const initialSchedule = {};
+    const initialDescriptions = {};
+    iceRinks.forEach(rink => {
+      initialSchedule[rink] = [];
+      initialDescriptions[rink] = "";
+    });
+    for (let h = startHour; h <= endHour; h++) {
+      for (let m = 0; m < 60; m += interval) {
+        const time = \`\${h.toString().padStart(2, "0")}:\${m.toString().padStart(2, "0")}\`;
+        initialSchedule[iceRinks[0]].push(time); // default tider till första hallen
+      }
+    }
+    setSchedule(initialSchedule);
+    setDescriptions(initialDescriptions);
+  }, []);
+
+  const handleDragStart = (e, time, rink) => {
+    e.dataTransfer.setData("text/plain", JSON.stringify({ time, rink }));
+  };
+
+  const handleDrop = (e, targetRink) => {
+    const { time, rink } = JSON.parse(e.dataTransfer.getData("text/plain"));
+    if (rink === targetRink) return;
+    setSchedule(prev => {
+      const newSchedule = { ...prev };
+      newSchedule[rink] = newSchedule[rink].filter(t => t !== time);
+      newSchedule[targetRink] = [...newSchedule[targetRink], time].sort();
+      return newSchedule;
+    });
+  };
+
+  const handleDescriptionChange = (e, rink) => {
+    setDescriptions({ ...descriptions, [rink]: e.target.value });
+  };
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <label>Roll:
-        <select value={role} onChange={e => setRole(e.target.value)} style={{ marginLeft: 8 }}>
-          <option value="viewer">Läsare</option>
-          <option value="admin">Admin</option>
+    <div>
+      <div style={{ marginBottom: "1rem" }}>
+        <label>Roll: </label>
+        <select value={role} onChange={(e) => setRole(e.target.value)}>
+          <option value="Admin">Admin</option>
+          <option value="Publik">Publik</option>
         </select>
-      </label>
-      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-        {halls.map(hall => (
-          <div key={hall} style={{ background: 'white', padding: '0.5rem', borderRadius: 4, flex: 1 }}>
-            <h2>{hall}</h2>
-            {role === 'admin' ? (
-              <textarea
-                rows="2"
-                value={desc[hall]}
-                onChange={e => setDesc({ ...desc, [hall]: e.target.value })}
-                placeholder="Beskrivning för skärmvisning"
-                style={{ width: '100%', marginBottom: '0.5rem' }}
+      </div>
+
+      <div style={{ display: "flex", gap: "1rem" }}>
+        {iceRinks.map(rink => (
+          <div
+            key={rink}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleDrop(e, rink)}
+            className="ice-column"
+            style={{ flex: 1, border: "1px solid gray", padding: "0.5rem", minHeight: "400px", backgroundColor: "#f9f9f9" }}
+          >
+            <h3>{rink}</h3>
+            {role === "Admin" && (
+              <input
+                type="text"
+                placeholder="Beskrivning (endast admin)"
+                value={descriptions[rink]}
+                onChange={(e) => handleDescriptionChange(e, rink)}
+                className="description-field"
+                style={{ width: "100%", marginBottom: "0.5rem" }}
               />
-            ) : desc[hall] && (
-              <p><em>{desc[hall]}</em></p>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2, maxHeight: 400, overflow: 'auto' }}>
-              {times.map(t => (
-                <div key={t} style={{
-                  background: '#cce',
-                  padding: '2px 4px',
-                  fontSize: '0.8rem',
-                  borderRadius: 2
-                }}>{t}</div>
+            <div>
+              {(schedule[rink] || []).map(time => (
+                <div
+                  key={time}
+                  className="time-slot"
+                  draggable={role === "Admin"}
+                  onDragStart={(e) => handleDragStart(e, time, rink)}
+                >
+                  {time}
+                </div>
               ))}
             </div>
           </div>
         ))}
       </div>
     </div>
-  )
-}
+  );
+};
+
+export default IceSchedule;
